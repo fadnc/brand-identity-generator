@@ -586,7 +586,7 @@ class BrandVariant(db.Model):
     # VARIANT INFORMATION
     # ========================================================================
     variant_number = db.Column(db.Integer, nullable=False)  # 1, 2, 3 (A, B, C)
-    variant_name = db.Column(db.String(100))  # Optional custom name like "Modern", "Classic"
+    variant_name = db.Column(db.String(100))  # Optional custom name
     description = db.Column(db.Text)
     
     # ========================================================================
@@ -671,33 +671,18 @@ class BrandVariant(db.Model):
     # ========================================================================
     
     def record_impression(self) -> None:
-        """
-        Record an impression (view) of this variant.
-        
-        Example:
-            variant.record_impression()
-        """
+        """Record an impression (view) of this variant."""
         self.impressions += 1
         db.session.commit()
     
     def record_click(self) -> None:
-        """
-        Record a click on this variant.
-        
-        Example:
-            variant.record_click()
-        """
+        """Record a click on this variant."""
         self.clicks += 1
         self._update_ctr()
         db.session.commit()
     
     def record_conversion(self) -> None:
-        """
-        Record a conversion for this variant.
-        
-        Example:
-            variant.record_conversion()
-        """
+        """Record a conversion for this variant."""
         self.conversions += 1
         self._update_conversion_rate()
         db.session.commit()
@@ -713,15 +698,7 @@ class BrandVariant(db.Model):
             self.conversion_rate = (self.conversions / self.clicks) * 100
     
     def get_overall_score(self) -> float:
-        """
-        Calculate overall weighted score for variant comparison.
-        
-        Returns:
-            Overall score (0-1)
-            
-        Example:
-            score = variant.get_overall_score()
-        """
+        """Calculate overall weighted score for variant comparison."""
         weights = {
             'performance': 0.3,
             'sentiment': 0.2,
@@ -739,19 +716,7 @@ class BrandVariant(db.Model):
         return round(sum(scores), 3)
     
     def get_statistical_significance(self, other_variant) -> dict:
-        """
-        Calculate statistical significance vs another variant.
-        
-        Args:
-            other_variant: Another BrandVariant to compare
-            
-        Returns:
-            Dict with statistical metrics
-            
-        Example:
-            sig = variant_a.get_statistical_significance(variant_b)
-        """
-        # Simple z-test for conversion rates
+        """Calculate statistical significance vs another variant."""
         if not other_variant or self.impressions == 0 or other_variant.impressions == 0:
             return {'significant': False, 'confidence': 0}
         
@@ -764,12 +729,10 @@ class BrandVariant(db.Model):
         
         # Calculate z-score
         z_score = abs((p1 - p2) / se) if se > 0 else 0
-        
-        # Confidence level (simplified)
-        confidence = min(z_score / 2, 0.99)  # Max 99% confidence
+        confidence = min(z_score / 2, 0.99)
         
         return {
-            'significant': z_score > 1.96,  # 95% confidence
+            'significant': z_score > 1.96,
             'confidence': round(confidence, 3),
             'z_score': round(z_score, 3),
             'lift': round(((p1 / p2) - 1) * 100, 2) if p2 > 0 else 0
@@ -780,14 +743,7 @@ class BrandVariant(db.Model):
     # ========================================================================
     
     def select_as_final(self) -> None:
-        """
-        Mark this variant as the selected final version.
-        Unselects all other variants for this project.
-        
-        Example:
-            variant.select_as_final()
-        """
-        # Unselect other variants
+        """Mark this variant as the selected final version."""
         BrandVariant.query.filter_by(
             project_id=self.project_id
         ).update({'is_selected': False})
@@ -796,23 +752,13 @@ class BrandVariant(db.Model):
         db.session.commit()
     
     def start_test(self) -> None:
-        """
-        Start A/B test for this variant.
-        
-        Example:
-            variant.start_test()
-        """
+        """Start A/B test for this variant."""
         self.test_start_date = datetime.utcnow()
         self.is_active = True
         db.session.commit()
     
     def end_test(self) -> None:
-        """
-        End A/B test for this variant.
-        
-        Example:
-            variant.end_test()
-        """
+        """End A/B test for this variant."""
         self.test_end_date = datetime.utcnow()
         self.is_active = False
         db.session.commit()
@@ -822,18 +768,7 @@ class BrandVariant(db.Model):
     # ========================================================================
     
     def to_dict(self, include_full_data: bool = False) -> dict:
-        """
-        Convert variant to dictionary.
-        
-        Args:
-            include_full_data: Include all generated content
-            
-        Returns:
-            Dictionary representation
-            
-        Example:
-            data = variant.to_dict()
-        """
+        """Convert variant to dictionary."""
         data = {
             'id': self.id,
             'project_id': self.project_id,
@@ -873,18 +808,7 @@ class BrandVariant(db.Model):
     
     @staticmethod
     def get_project_variants(project_id: int):
-        """
-        Get all active variants for a project.
-        
-        Args:
-            project_id: Project ID
-            
-        Returns:
-            List of BrandVariant objects
-            
-        Example:
-            variants = BrandVariant.get_project_variants(project_id=1)
-        """
+        """Get all active variants for a project."""
         return BrandVariant.query.filter_by(
             project_id=project_id,
             is_active=True
@@ -892,22 +816,9 @@ class BrandVariant(db.Model):
     
     @staticmethod
     def compare_variants(project_id: int) -> list:
-        """
-        Get comparison data for all variants, sorted by performance.
-        
-        Args:
-            project_id: Project ID
-            
-        Returns:
-            Sorted list of variant dictionaries
-            
-        Example:
-            comparison = BrandVariant.compare_variants(project_id=1)
-            best = comparison[0]
-        """
+        """Get comparison data for all variants, sorted by performance."""
         variants = BrandVariant.get_project_variants(project_id)
         
-        # Sort by overall score
         sorted_variants = sorted(
             variants,
             key=lambda v: v.get_overall_score(),
@@ -919,4 +830,66 @@ class BrandVariant(db.Model):
     @staticmethod
     def get_winning_variant(project_id: int):
         """
-        Get the variant with the best performance.
+        Get the variant with the best overall performance.
+        
+        Args:
+            project_id: Project ID
+            
+        Returns:
+            BrandVariant with highest overall score or None
+            
+        Example:
+            winner = BrandVariant.get_winning_variant(project_id=1)
+            if winner:
+                print(f"Winner: Variant {winner.variant_number}")
+        """
+        variants = BrandVariant.get_project_variants(project_id)
+        
+        if not variants:
+            return None
+        
+        return max(variants, key=lambda v: v.get_overall_score())
+    
+    @staticmethod
+    def get_statistics(project_id: int) -> dict:
+        """
+        Get overall A/B testing statistics for a project.
+        
+        Args:
+            project_id: Project ID
+            
+        Returns:
+            Dictionary with aggregated statistics
+            
+        Example:
+            stats = BrandVariant.get_statistics(project_id=1)
+            print(f"Total impressions: {stats['total_impressions']}")
+        """
+        variants = BrandVariant.get_project_variants(project_id)
+        
+        if not variants:
+            return {
+                'total_variants': 0,
+                'total_impressions': 0,
+                'total_clicks': 0,
+                'total_conversions': 0,
+                'avg_ctr': 0,
+                'avg_conversion_rate': 0
+            }
+        
+        total_impressions = sum(v.impressions for v in variants)
+        total_clicks = sum(v.clicks for v in variants)
+        total_conversions = sum(v.conversions for v in variants)
+        
+        avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
+        avg_conversion_rate = (total_conversions / total_clicks * 100) if total_clicks > 0 else 0
+        
+        return {
+            'total_variants': len(variants),
+            'total_impressions': total_impressions,
+            'total_clicks': total_clicks,
+            'total_conversions': total_conversions,
+            'avg_ctr': round(avg_ctr, 2),
+            'avg_conversion_rate': round(avg_conversion_rate, 2),
+            'best_variant': max(variants, key=lambda v: v.get_overall_score()).variant_number if variants else None
+        }
